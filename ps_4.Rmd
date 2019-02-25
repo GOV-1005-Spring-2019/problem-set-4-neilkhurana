@@ -1,0 +1,23 @@
+---
+title: "Problem Set 4"
+author: "Neil Khurana"
+date: "February 25, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+## Question 1
+
+
+```{r}
+nc <- read_csv("ps_4_elections-poll-nc09-3.csv") %>% 
+  View()
+```
+
