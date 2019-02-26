@@ -11,13 +11,74 @@ library(tidyverse)
 library(readr)
 library(dplyr)
 library(ggplot2)
+library(gt)
 ```
 
 ## Question 1
 
+```{r}
+x <- read_csv("ps_4_elections-poll-nc09-3.csv") %>% 
+   filter(!is.na(response), response %in% c("Dem", "Rep", "Und"))
+```
+There were `r x %>% filter(response == "Dem") %>% nrow()` respondents who supported the Democratic candidate.
+
+There were `r x %>% filter(response == "Rep") %>% nrow() - x %>% filter(response == "Und") %>% nrow()` more respondents who supported the Democratic candidate.
+
+There are two gender variables (`gender` and `gender_combined`). There are `r x %>% filter(gender != "[DO NOT READ] Don't know/Refused", gender_combined != "[DO NOT READ] Don't know/Refused", gender != gender_combined) %>% nrow()` individuals for whom these variables have different values.
+
+There are `r x %>% filter(race_eth == "White") %>% filter(race_eth != file_race_black) %>% nrow()` respondents listed as “White” under `race_eth` who are not listed as “White” under `file_race_black`.
 
 ```{r}
-nc <- read_csv("ps_4_elections-poll-nc09-3.csv") %>% 
-  View()
+min_r <- x %>% 
+   filter(response == "Rep") %>%
+    arrange(timestamp) %>% 
+    slice(1) %>% 
+  select(timestamp)
+ 
+
+min_d <- x %>% 
+  filter(response == "Dem") %>% 
+  arrange(timestamp) %>% 
+  slice(1) %>% 
+  select(timestamp)
 ```
+
+The first `response` of Rep came `r round(as.numeric(min_r-min_d), digits = 0)` minutes (rounded to the nearest minute) after the first `response` of Dem.
+
+## Question 2
+
+```{r}
+table <- x %>% 
+  select(response, race_eth, final_weight) %>% 
+  group_by(race_eth, response) %>% 
+  summarize(total = sum(final_weight)) %>%   
+  filter(race_eth != "[DO NOT READ] Don't know/Refused") %>% 
+  spread(key =  response, value = total) %>% 
+  mutate(all = Dem + Rep + Und) %>% 
+  mutate(Dem = Dem / all) %>% 
+  mutate(Rep = Rep / all) %>% 
+  mutate(Und = Und / all) %>% 
+  select(-all) %>% 
+  
+  ungroup() %>% 
+  
+  gt() %>% 
+    tab_header(
+      title = "Polling Results in North Carolina 9th Congressional District") %>% 
+    
+    cols_label(
+      race_eth = "Race",
+      Dem = "DEM.",
+      Rep = "REP.",
+      Und = "UND."
+      ) %>%
+  
+    fmt_percent(columns = vars(Dem, Rep, Und),
+                decimals = 0) 
+table
+   
+```
+  
+
+
 
