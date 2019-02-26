@@ -51,8 +51,8 @@ The first `response` of Rep came `r round(as.numeric(min_r-min_d), digits = 0)` 
 
 ## Question 2
 
-```{r, echo = FALSE}
-y <- read_csv("ps_4_elections-poll-nc09-3.csv") %>% 
+```{r, echo = FALSE, message = FALSE}
+y <- x %>% 
   filter(!is.na(response)) %>% 
   select(response, race_eth, final_weight) %>% 
   group_by(race_eth, response) %>% 
@@ -65,9 +65,13 @@ y <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
   mutate(Und = Und / all) %>% 
   select(-all, -`3`) %>%
   ungroup() %>% 
+  mutate(race_eth = factor(race_eth, levels = c("White", "Black", "Hispanic", "Asian", "Other"))) %>%
+  arrange(race_eth) %>% 
   gt() %>% 
   tab_header(
-    title = "Polling Results in NC 9th Congressional District") %>% 
+    title = "Polling Results in North Carolina 9th Congressional District") %>% 
+  tab_source_note(source_note = "Source: New York Times Upshot/Siena College 2018 Live Polls"
+  ) %>% 
   
   cols_label(
     race_eth = "",
@@ -75,6 +79,7 @@ y <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
     Rep = "REP.",
     Und = "UND."
   ) %>%
+  
   
   fmt_percent(columns = vars(Dem, Rep, Und),
               decimals = 0)
@@ -84,28 +89,34 @@ y
 ## Question 3
 
 ```{r, echo = FALSE, message = FALSE}
-e <- read_csv("ps_4_elections-poll-nc09-3.csv") %>% 
-  filter(!is.na(educ4)) %>% 
+e <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
+  select(educ, final_weight) %>% 
+  filter(educ != "[DO NOT READ] Refused") %>%  
   ## Proper filters are put in place to get rid of NAs and meet the undergrad specifications
-  filter(educ4 %in% c("Graduate or Professional Degree", "Bachelors' Degree",
-                                  "Some college or trade school", "High School",
-                                  "Grade School")) %>%
   ## We filter out to only the course departments that we are interested in for this graph
-  group_by(educ4) %>% 
-  select(educ4, final_weight) 
-e %>% 
-  ggplot(aes(x = final_weight, y = educ4)) +
-  geom_density_ridges_gradient(aes(fill = ..x..)) +
+  
+  mutate(educ = factor(educ, levels = c("Grade school", "High school",
+                                        "Some college or trade school", "Bachelors' degree",
+                                        "Graduate or Professional Degree"))) %>%
+  ggplot(aes(x = educ, y = final_weight)) +
+  geom_violin() +
+  geom_jitter(alpha = 0.4, width = 0.2) +
+  coord_flip() +
   ## Sets the axis values and the graph type
-  xlab("Weight Given to Respondent in Calculating Poll Results") +
-  ylab("") +
   ## Proper labeling of both axis
-  scale_fill_viridis(option = "B", guide = FALSE) +
   ## Graph is filled with color, legend is removed, and log scaling is used
-  labs(title = "More Educated Matter Less in North Carolina 9th", 
-       subtitle = "Poll gives more weight to people who are less likely to participate in polls", caption = "New York Times Upshot/Siena College 2018 live polls")
-## Assigns proper titles, subtitles, and captions
+  labs(title = "More Educated Matter Less in North Carolina 9th",
+           subtitle = "Poll gives more weight to people who are less likely to participate in polls",
+         x = NULL,
+         y = "Weight Given to Respondent in Calculating Poll Results",
+           caption = "New York Times Upshot/Siena College 2018 live polls") 
+e
 ```
 
+## Question 4
+
+```{r, echo = FALSE, message = FALSE}
+
+```
 
 
