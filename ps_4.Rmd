@@ -1,7 +1,7 @@
 ---
 title: "Problem Set 4"
 author: "Neil Khurana"
-date: "February 25, 2019"
+date: "February 27, 2019"
 output: html_document
 ---
 
@@ -14,32 +14,40 @@ library(ggplot2)
 library(lubridate)
 library(readxl)
 library(janitor)
-library(ggridges)
-library(viridis)
 library(gt)
 ```
 
 ## Question 1
 
-```{r, include = FALSE}
+```{r initialRead, include = FALSE}
+# This will be the reference_csv for our polling data from NC 9th district
 x <- read_csv("ps_4_elections-poll-nc09-3.csv")
 ```
+[comment]: Specific filter for Dem voter and count rows which returns a number
+
 There were `r x %>% filter(response == "Dem") %>% nrow()` respondents who supported the Democratic candidate.
+
+[comment]: Filter of Rep and Undecided Voters, then subtract Und from Rep
 
 There were `r x %>% filter(response == "Rep") %>% nrow() - x %>% filter(response == "Und") %>% nrow()` more respondents who favored the Republican candidate than who were Undecided.
 
+[comment]: Filter out the unreadable values and keep only the values of gender and gender_combined that are differnt from each other. Then we count rows.
+
 There are two gender variables (`gender` and `gender_combined`). There are `r x %>% filter(gender != "[DO NOT READ] Don't know/Refused", gender_combined != "[DO NOT READ] Don't know/Refused", gender != gender_combined) %>% nrow()` individuals for whom these variables have different values.
+
+[comment]: This does a comparision of the races through filter. Count rows that differentiate
 
 There are `r x %>% filter(race_eth == "White") %>% filter(race_eth != file_race_black) %>% nrow()` respondents listed as “White” under `race_eth` who are not listed as “White” under `file_race_black`.
 
-```{r, echo = FALSE}
+```{r partyResponseTime, echo = FALSE}
+#Finds the earliest time of response for a Republican Voter
 min_r <- x %>% 
    filter(response == "Rep") %>%
     arrange(timestamp) %>% 
     slice(1) %>% 
   select(timestamp)
  
-
+#Finds the earliest time of response for a Republican Voter
 min_d <- x %>% 
   filter(response == "Dem") %>% 
   arrange(timestamp) %>% 
@@ -47,33 +55,52 @@ min_d <- x %>%
   select(timestamp)
 ```
 
+[comment]: Substracts the dem time from republican time and rounds to the nearest minute using round() function
+
 The first `response` of Rep came `r round(as.numeric(min_r-min_d), digits = 0)` minutes (rounded to the nearest minute) before the first `response` of Dem.
 
 ## Question 2
 
-```{r, echo = FALSE, message = FALSE}
-y <- x %>% 
+```{r raceTable, echo = FALSE, message = FALSE}
+race_chart <- x %>% 
+  
+  # The data is properly filtered to include only the race, response and weight values
+  # Weight is used as our summing mechanism as explained in class to remove response bias from a poll
   filter(!is.na(response)) %>% 
   select(response, race_eth, final_weight) %>% 
   group_by(race_eth, response) %>% 
   summarize(total = sum(final_weight)) %>%   
   filter(race_eth != "[DO NOT READ] Don't know/Refused") %>% 
+  
+  # The data must be spread into a format where we can mutate the variables for calculation of percentage instead
+  # 3rd party and all(overall) columns are no longer needed
   spread(key =  response, value = total, fill = 0) %>%  
   mutate(all = Dem + Rep + Und + `3`) %>% 
   mutate(Dem = Dem / all) %>% 
   mutate(Rep = Rep / all) %>% 
   mutate(Und = Und / all) %>% 
   select(-all, -`3`) %>%
+  
+  # Ungroup is very important since this is being transfered to a gt
   ungroup() %>% 
+  
+  # This mutate and arrange function orders race as we want it to be
   mutate(race_eth = factor(race_eth, levels = c("White", "Black", "Hispanic", "Asian", "Other"))) %>%
   arrange(race_eth) %>% 
+  
+  # All o's are NAs and this will be useful as seen in a future command
   na_if(0) %>%
+  
+  # Tibble is piped into gt()
   gt() %>% 
+  
+  # A title and source label is assigned
   tab_header(
     title = "Polling Results in North Carolina 9th Congressional District") %>% 
   tab_source_note(source_note = "Source: New York Times Upshot/Siena College 2018 Live Polls"
   ) %>% 
   
+  # We want better labels than the variable names themselves. Race will now be a label and I prefer not to abbreviate
   cols_label(
     race_eth = "Race",
     Dem = "Democrat",
@@ -82,70 +109,107 @@ y <- x %>%
   ) %>%
   
   
+  # The decimal values are converted to percents
   fmt_percent(columns = vars(Dem, Rep, Und),
               decimals = 0) %>% 
   
+  # The NA gets replaced with a "-". This NA used to be a 0. 
   fmt_missing(columns = vars(Und), rows = 4) 
-y
+
+# Displays the table
+race_chart
 
 
 ```
 
 ## Question 3
 
-```{r, echo = FALSE, message = FALSE}
-e <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
+```{r educationPlot, echo = FALSE, message = FALSE}
+educ_plot <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
+  
+  # Proper filters are put in place to get rid of NAs and meet the undergrad specifications
   select(educ, final_weight) %>% 
   filter(educ != "[DO NOT READ] Refused") %>%  
-  ## Proper filters are put in place to get rid of NAs and meet the undergrad specifications
-  ## We filter out to only the course departments that we are interested in for this graph
   
+
+  # These are the levels of education we are interested. This from of mutate allows us to change the ordering we would like on our plot
   mutate(educ = factor(educ, levels = c("Grade school", "High school",
                                         "Some college or trade school", "Bachelors' degree",
                                         "Graduate or Professional Degree"))) %>%
+  
+  # Creation of a ggplot with geom_violin for the shape and geom_jitter for the scattered points. Opacity levels set
   ggplot(aes(x = educ, y = final_weight)) +
   geom_violin() +
   geom_jitter(alpha = 0.4, width = 0.2) +
+  
+  # Flips the display of axis for this graph
   coord_flip() +
-  ## Sets the axis values and the graph type
-  ## Proper labeling of both axis
-  ## Graph is filled with color, legend is removed, and log scaling is used
+
+  # Proper labeling of both axis along with subtitles and sources
   labs(title = "More Educated Matter Less in North Carolina 9th",
            subtitle = "Poll gives more weight to people who are less likely to participate in polls",
          x = NULL,
          y = "Weight Given to Respondent in Calculating Poll Results",
            caption = "New York Times Upshot/Siena College 2018 live polls") 
-e
+
+# Displays the plot
+educ_plot
 ```
 
 ## Question 4
 
-```{r, echo = FALSE, message = FALSE}
-f <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
+```{r genderBar, echo = FALSE, message = FALSE}
+
+# In the following, we create a sideways bar chart to represent political party support by gender
+# Each bar is separated by percentage in each gender. The appropriate weights are still kept in place
+# This is a very interesting chart because we can determine if certain genders favor political parties
+
+gender_table <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
+  
+  # Series of filter, select and summarize is performed so that we have columns of only gender party, and percentage
   filter(!is.na(response)) %>% 
   select(response, gender, final_weight) %>% 
   group_by(gender, response) %>% 
   summarize(total = sum(final_weight)) %>%   
   filter(gender != "[DO NOT READ] Don't know/Refused") %>% 
+  
+  # The table is spread so we can mutate new columns that break everything down by political party support
+  # Removes exceptions like 3rd party
   spread(key =  response, value = total, fill = 0) %>%  
   mutate(all = Dem + Rep + Und + `3`) %>% 
   mutate(Dem = Dem / all * 100) %>% 
   mutate(Rep = Rep / all * 100) %>% 
   mutate(Und = Und / all * 100) %>% 
   select(-all, -`3`) %>%
+  
+# Data is regathered into form that can be plotted
   gather(party, pct, Dem:Und) 
-p <- ggplot(f, aes(x = party, y = pct, fill = party))
-p + geom_col(position = "dodge2") +
+
+# ggplot is initated with our previosuly created dataframe
+gender_chart <- ggplot(gender_table, aes(x = party, y = pct, fill = party))
+
+# Added properties to the ggplot, sideways bar and faceted by Gender
+gender_chart + geom_col(position = "dodge2") +
     labs(x = NULL, y = "pct", fill = "party") +
     guides(fill = FALSE) + 
     coord_flip() + 
     facet_grid(~ gender) +
+    
+    # Each political party is assigned its respective color. 3rd party is green
     scale_fill_manual(values = c("blue", "red", "green")) +
+    
+    # All labels are included and title is centered
     ylab("Percentage of Voters") +
     xlab("Political Party") +
+    labs(caption = "New York Times Upshot/Siena College 2018 live polls") +
+    
+    # Title is assigned and cenetered
     theme(plot.title = element_text(hjust = 0.5)) +
-    scale_y_continuous(limits=c(0, 60)) +
-    ggtitle("Political Party Support Separated by Gender in NC 9th")
+    ggtitle("Political Party Support Separated by Gender in NC 9th") +
+    
+    # An appropriate scale is selected to display the percentages
+    scale_y_continuous(limits = c(0, 100)) 
+    
   
 ```
 
