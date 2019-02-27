@@ -209,8 +209,15 @@ gender_chart + geom_col(position = "dodge2") +
     
     # An appropriate scale is selected to display the percentages
     scale_y_continuous(limits = c(0, 100)) 
-    
-  
 ```
+
+# Colleagues
+Jenny Li,
+Mike Silva,
+Tate Green,
+Sabrina Chok,
+Henry Zhu,
+Albert Shin,
+Roger Zhang
 
 
