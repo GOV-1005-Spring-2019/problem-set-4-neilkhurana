@@ -67,6 +67,7 @@ y <- x %>%
   ungroup() %>% 
   mutate(race_eth = factor(race_eth, levels = c("White", "Black", "Hispanic", "Asian", "Other"))) %>%
   arrange(race_eth) %>% 
+  na_if(0) %>%
   gt() %>% 
   tab_header(
     title = "Polling Results in North Carolina 9th Congressional District") %>% 
@@ -74,16 +75,20 @@ y <- x %>%
   ) %>% 
   
   cols_label(
-    race_eth = "",
-    Dem = "DEM.",
-    Rep = "REP.",
-    Und = "UND."
+    race_eth = "Race",
+    Dem = "Democrat",
+    Rep = "Republican",
+    Und = "Undecided"
   ) %>%
   
   
   fmt_percent(columns = vars(Dem, Rep, Und),
-              decimals = 0)
+              decimals = 0) %>% 
+  
+  fmt_missing(columns = vars(Und), rows = 4) 
 y
+
+
 ```
 
 ## Question 3
@@ -116,7 +121,32 @@ e
 ## Question 4
 
 ```{r, echo = FALSE, message = FALSE}
-
+f <- read_csv("ps_4_elections-poll-nc09-3.csv") %>%
+  filter(!is.na(response)) %>% 
+  select(response, gender, final_weight) %>% 
+  group_by(gender, response) %>% 
+  summarize(total = sum(final_weight)) %>%   
+  filter(gender != "[DO NOT READ] Don't know/Refused") %>% 
+  spread(key =  response, value = total, fill = 0) %>%  
+  mutate(all = Dem + Rep + Und + `3`) %>% 
+  mutate(Dem = Dem / all * 100) %>% 
+  mutate(Rep = Rep / all * 100) %>% 
+  mutate(Und = Und / all * 100) %>% 
+  select(-all, -`3`) %>%
+  gather(party, pct, Dem:Und) 
+p <- ggplot(f, aes(x = party, y = pct, fill = party))
+p + geom_col(position = "dodge2") +
+    labs(x = NULL, y = "pct", fill = "party") +
+    guides(fill = FALSE) + 
+    coord_flip() + 
+    facet_grid(~ gender) +
+    scale_fill_manual(values = c("blue", "red", "green")) +
+    ylab("Percentage of Voters") +
+    xlab("Political Party") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    scale_y_continuous(limits=c(0, 60)) +
+    ggtitle("Political Party Support Separated by Gender in NC 9th")
+  
 ```
 
 
